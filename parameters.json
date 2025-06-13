@@ -1,0 +1,12 @@
+{
+  "Parameters": {
+    "MyVpcCidr": "20.0.0.0/18",
+    "MyDBSubnetGroupName": "",
+    "MyDBName": "",
+    "MyDBRootUserPassword": "",
+    "MyWebInstanceLaunchTemplate": "",
+    "MyAppInstanceLaunchTemplate": "",
+    "MyWebInstanceLaunchTemplateVersion": "",
+    "MyAppInstanceLaunchTemplateVersion":""
+  }
+}
