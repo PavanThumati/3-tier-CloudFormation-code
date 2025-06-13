@@ -1,12 +1,13 @@
 {
   "Parameters": {
     "MyVpcCidr": "20.0.0.0/18",
-    "MyDBSubnetGroupName": "",
-    "MyDBName": "",
-    "MyDBRootUserPassword": "",
-    "MyWebInstanceLaunchTemplate": "",
-    "MyAppInstanceLaunchTemplate": "",
-    "MyWebInstanceLaunchTemplateVersion": "",
-    "MyAppInstanceLaunchTemplateVersion":""
+    "MyDBSubnetGroupName": "MyDBSubnetGroup",
+    "MyDBName": "MySQLDatabase",
+    "MyDBRootUserName": "admin"
+    "MyDBRootUserPassword": "admin1234",
+    "MyWebInstanceLaunchTemplate": "sample-launchtemplate-arn",
+    "MyAppInstanceLaunchTemplate": "sample-launchtemplate-arn",
+    "MyWebInstanceLaunchTemplateVersion": "1",
+    "MyAppInstanceLaunchTemplateVersion": "1",
   }
 }
