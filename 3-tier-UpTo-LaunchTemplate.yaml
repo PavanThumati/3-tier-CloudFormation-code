@@ -1,0 +1,485 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: StackSet template to create a basic VPC with public and private subnets, NAT, and an RDS MySQL DB
+
+Parameters:
+  MyVpcCidr:
+    Type: String
+    Description: "CIDR block for the VPC"
+    Default: "10.0.0.0/16"
+    AllowedValues:
+      - "10.0.0.0/16"
+      - "20.0.0.0/18"
+  MyDBSubnetGroupName:
+    Type: String
+    Description: "Name for the DB Subnet Group"
+    Default: "MyDBSubnetGroup"
+  MyDBName:
+    Type: String
+    Description: "Name for the MySQL Database"
+    Default: "MySQLDatabase"
+  MyDBRootUserName:
+    Type: String
+    Description: "Root username for the MySQL Database"
+    Default: "admin"
+  MyDBRootUserPassword:
+    Type: String
+    Description: "Root password for the MySQL Database"
+    Default: "admin1234"
+    NoEcho: true
+  MyWebInstanceLaunchTemplate:
+    Type: String
+    Description: "Enter Launch Template ID for the Web Tier Instances which you created earlier(through console)"
+  MyAppInstanceLaunchTemplate:
+    Type: String
+    Description: "Enter Launch Template ID for the App Tier Instances which you created earlier(through console)"
+  MyWebInstanceLaunchTemplateVersion:
+    Type: String
+    Description: "Launch Template Version for Web Tier"
+  MyAppInstanceLaunchTemplateVersion:
+    Type: String
+    Description: "Launch Template Version for App Tier"
+
+Conditions:
+  is_cidr_10: !Equals [!Ref MyVpcCidr, "10.0.0.0/16"]
+
+Resources:
+  # VPC and DNS
+  MyVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref MyVpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: My-VPC
+
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: My-Internet-Gateway
+
+  MyIGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVpc
+      InternetGatewayId: !Ref MyIGW
+
+  # Public Subnets
+  MyWebPubSub1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !If [is_cidr_10, "10.0.0.0/19", "20.0.0.0/21"]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Web-Public-Subnet1
+
+  MyWebPubSub2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVpc
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !If [is_cidr_10, "10.0.32.0/19", "20.0.8.0/21"]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Web-Public-Subnet2
+
+  # Private App Subnets
+  MyAppPriSub1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !If [is_cidr_10, "10.0.64.0/19", "20.0.16.0/21"]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: App-Private-Subnet1
+
+  MyAppPriSub2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVpc
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !If [is_cidr_10, "10.0.96.0/19", "20.0.24.0/21"]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: App-Private-Subnet2
+
+  # Private DB Subnets
+  MyDBPriSub1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !If [is_cidr_10, "10.0.128.0/18", "20.0.40.0/20"]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: DB-Private-Subnet1
+
+  MyDBPriSub2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVpc
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !If [is_cidr_10, "10.0.192.0/18", "20.0.48.0/20"]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: DB-Private-Subnet2
+
+  # Elastic IP for NAT Gateway
+  MyEIPForNat:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: MyNAT-EIP
+
+  # NAT Gateway
+  MyNatGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: MyWebPubSub1
+    Properties:
+      ConnectivityType: public
+      SubnetId: !Ref MyWebPubSub1 #.SubnetId
+      AllocationId: !GetAtt MyEIPForNat.AllocationId
+      Tags:
+        - Key: Name
+          Value: My-NAT-Gateway
+
+  # Route Tables
+  MyWebRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVpc
+      Tags:
+        - Key: Name
+          Value: Web-Public-RT
+
+  MyAppRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVpc
+      Tags:
+        - Key: Name
+          Value: App-Private-RT
+
+  MyDBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVpc
+      Tags:
+        - Key: Name
+          Value: DB-Private-RT
+
+  # Route Table Associations
+  MyWebRTAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyWebPubSub1
+      RouteTableId: !Ref MyWebRouteTable
+  MyWebRTAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyWebPubSub2
+      RouteTableId: !Ref MyWebRouteTable
+
+  MyAppRTAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyAppPriSub1
+      RouteTableId: !Ref MyAppRouteTable
+  MyAppRTAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyAppPriSub2
+      RouteTableId: !Ref MyAppRouteTable
+
+  MyDBRTAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyDBPriSub1
+      RouteTableId: !Ref MyDBRouteTable
+  MyDBRTAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyDBPriSub2
+      RouteTableId: !Ref MyDBRouteTable
+
+  # Routes
+  MyWebDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: MyIGWAttachment
+    Properties:
+      RouteTableId: !Ref MyWebRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref MyIGW
+
+  MyAppDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: MyNatGateway
+    Properties:
+      RouteTableId: !Ref MyAppRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref MyNatGateway
+
+  # Security Groups for ALBs and Instances
+  MyALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Public ALB SG"
+      VpcId: !Ref MyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: Name
+          Value: ALB-SG
+
+  MyInternalALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Internal ALB SG"
+      VpcId: !Ref MyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref MyWebInstanceSG
+      Tags:
+        - Key: Name
+          Value: Internal-ALB-SG
+  MyWebInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Web Instance SG"
+      VpcId: !Ref MyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref MyALBSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: Name
+          Value: Web-Instance-SG
+
+  MyAppInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "App Instance SG"
+      VpcId: !Ref MyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          SourceSecurityGroupId: !Ref MyInternalALBSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: Name
+          Value: App-Instance-SG
+
+  MyDBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Database SG"
+      VpcId: !Ref MyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref MyAppInstanceSG
+      Tags:
+        - Key: Name
+          Value: DB-SG
+
+  # RDS Subnet Group
+  MyDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnets for MySQL"
+      DBSubnetGroupName: !Ref MyDBSubnetGroupName
+      SubnetIds:
+        - !Ref MyDBPriSub1
+        - !Ref MyDBPriSub2
+
+  # RDS DB Instance
+  # MySQLDatabase:
+  #   Type: AWS::RDS::DBInstance
+  #   DependsOn: MyDBSubnetGroup
+  #   Properties:
+  #     DBInstanceIdentifier: !Ref MyDBName
+  #     Engine: mysql
+  #     EngineVersion: 8.0.36
+  #     DBInstanceClass: db.t3.small
+  #     AllocatedStorage: 20
+  #     MasterUsername: !Ref MyDBRootUserName
+  #     MasterUserPassword: !Ref MyDBRootUserPassword
+  #     MultiAZ: true
+  #     VPCSecurityGroups:
+  #       - !Ref MyDBSG
+  #     DBSubnetGroupName: !Ref MyDBSubnetGroup
+
+
+  
+  # MyALB:
+  #   Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  #   Properties:
+  #     Name: "My-ALB"
+  #     Subnets: 
+  #       - !Ref MyWebPubSub1
+  #       - !Ref MyWebPubSub2
+  #     SecurityGroups: 
+  #       - !Ref MyALBSG
+  #     Scheme: internet-facing
+  #     Tags:
+  #       - Key: "Name"
+  #         Value: "My-ALB"
+  # MyALBTargetGroup:
+  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  #   Properties:
+  #     Name: "My-Web-Target-Group"
+  #     Port: 80
+  #     Protocol: HTTP
+  #     VpcId: !Ref MyVpc
+  #     TargetType: instance
+  #     HealthCheckPath: "/"
+  #     Tags:
+  #       - Key: "Name"
+  #         Value: "My-Web-Target-Group"
+  # MyALBHTTPListener:
+  #   Type: AWS::ElasticLoadBalancingV2::Listener
+  #   DependsOn: MyALB
+  #   Properties:
+  #     LoadBalancerArn: !Ref MyALB
+  #     Port: 80
+  #     Protocol: HTTP
+  #     DefaultActions:
+  #       - Type: forward
+  #         TargetGroupArn: !Ref MyALBTargetGroup
+  # MyInternalALB:
+  #   Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  #   Properties:
+  #     Name: "My-Internal-ALB"
+  #     Subnets: 
+  #       - !Ref MyAppPriSub1
+  #       - !Ref MyAppPriSub2
+  #     SecurityGroups: 
+  #       - !Ref MyInternalALBSG
+  #     Scheme: internal
+  #     Tags:
+  #       - Key: "Name"
+  #         Value: "My-Internal-ALB"
+  # MyInternalLBTargetGroup:
+  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  #   Properties:
+  #     Name: "My-App-Target-Group"
+  #     Port: 5000
+  #     Protocol: HTTP
+  #     VpcId: !Ref MyVpc
+  #     TargetType: instance
+  #     HealthCheckPath: "/"
+  #     Tags:
+  #       - Key: "Name"
+  #         Value: "My-App-Target-Group"
+  # MyInternalLBListener:
+  #   Type: AWS::ElasticLoadBalancingV2::Listener
+  #   DependsOn: MyInternalALB
+  #   Properties:
+  #     LoadBalancerArn: !Ref MyInternalALB
+  #     Port: 5000
+  #     Protocol: HTTP
+  #     DefaultActions:
+  #       - Type: forward
+  #         TargetGroupArn: !Ref MyInternalLBTargetGroup
+
+          
+# Add the auto scaling groups after you manually created the launch Templates
+#   MyWebTierAutoScalingGroup:
+#     Type: AWS::AutoScaling::AutoScalingGroup
+#     Properties:
+#       AutoScalingGroupName: "Web-Tier-ASG"
+#       DesiredCapacity: 2
+#       MinSize: 2
+#       MaxSize: 3
+#       LaunchTemplate: 
+#         LaunchTemplateId: !Ref MyWebInstanceLaunchTemplate
+#         Version: !Ref MyWebInstanceLaunchTemplateVersion #!GetAtt MyWebInstanceLaunchTemplate.LatestVersionNumber
+#       TargetGroupARNs: 
+#         - !Ref MyALBTargetGroup
+#       VPCZoneIdentifier:
+#         - !Ref MyWebPubSub1
+#         - !Ref MyWebPubSub2
+#   MyAppTierAutoScalingGroup:
+#     Type: AWS::AutoScaling::AutoScalingGroup
+#     Properties:
+#       AutoScalingGroupName: "App-Tier-ASG"
+#       DesiredCapacity: 2
+#       MinSize: 2
+#       MaxSize: 3
+#       LaunchTemplate: 
+#         LaunchTemplateId: !Ref MyAppInstanceLaunchTemplate
+#         Version: !Ref MyAppInstanceLaunchTemplateVersion #!GetAtt MyAppInstanceLaunchTemplate.LatestVersionNumber
+#       TargetGroupARNs: 
+#         - !Ref MyInternalLBTargetGroup
+#       VPCZoneIdentifier:
+#         - !Ref MyAppPriSub1
+#         - !Ref MyAppPriSub2
+
+# Outputs:
+#   InternetFacingLoadBalancerURL:
+#     Description: The URL of the Web Tier Application Load Balancer
+#     Value: !GetAtt MyALB.DNSName
+#   InternalLoadBalancerURL:
+#     Description: The URL of the App Tier Application Load Balancer
+#     Value: !GetAtt MyInternalALB.DNSName
+#   MySQLDatabaseEndpointAddress:
+#     Description: The FQDN of the MySQL Database
+#     Value: !GetAtt MySQLDatabase.Endpoint.Address
+#   MySQLDatabasePort:
+#     Description: The TCP port of the MySQL Database
+#     Value: !GetAtt MySQLDatabase.Endpoint.Port
