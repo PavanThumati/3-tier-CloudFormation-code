@@ -3,7 +3,7 @@
     "MyVpcCidr": "20.0.0.0/18",
     "MyDBSubnetGroupName": "MyDBSubnetGroup",
     "MyDBName": "MySQLDatabase",
-    "MyDBRootUserName": "admin"
+    "MyDBRootUserName": "admin",
     "MyDBRootUserPassword": "admin1234",
     "MyWebInstanceLaunchTemplate": "sample-launchtemplate-arn",
     "MyAppInstanceLaunchTemplate": "sample-launchtemplate-arn",
