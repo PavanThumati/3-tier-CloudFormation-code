@@ -364,76 +364,76 @@ Resources:
   #       - !Ref MyDBSG
   #     DBSubnetGroupName: !Ref MyDBSubnetGroup
   
-#   MyALB:
-#     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-#     Properties:
-#       Name: "My-ALB"
-#       Subnets: 
-#         - !Ref MyWebPubSub1
-#         - !Ref MyWebPubSub2
-#       SecurityGroups: 
-#         - !Ref MyALBSG
-#       Scheme: internet-facing
-#       Tags:
-#         - Key: "Name"
-#           Value: "My-ALB"
-#   MyALBTargetGroup:
-#     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-#     Properties:
-#       Name: "My-Web-Target-Group"
-#       Port: 80
-#       Protocol: HTTP
-#       VpcId: !Ref MyVpc
-#       TargetType: instance
-#       HealthCheckPath: "/"
-#       Tags:
-#         - Key: "Name"
-#           Value: "My-Web-Target-Group"
-#   MyALBHTTPListener:
-#     Type: AWS::ElasticLoadBalancingV2::Listener
-#     DependsOn: MyALB
-#     Properties:
-#       LoadBalancerArn: !Ref MyALB
-#       Port: 80
-#       Protocol: HTTP
-#       DefaultActions:
-#         - Type: forward
-#           TargetGroupArn: !Ref MyALBTargetGroup
-#   MyInternalALB:
-#     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-#     Properties:
-#       Name: "My-Internal-ALB"
-#       Subnets: 
-#         - !Ref MyAppPriSub1
-#         - !Ref MyAppPriSub2
-#       SecurityGroups: 
-#         - !Ref MyInternalALBSG
-#       Scheme: internal
-#       Tags:
-#         - Key: "Name"
-#           Value: "My-Internal-ALB"
-#   MyInternalLBTargetGroup:
-#     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-#     Properties:
-#       Name: "My-App-Target-Group"
-#       Port: 5000
-#       Protocol: HTTP
-#       VpcId: !Ref MyVpc
-#       TargetType: instance
-#       HealthCheckPath: "/"
-#       Tags:
-#         - Key: "Name"
-#           Value: "My-App-Target-Group"
-#   MyInternalLBListener:
-#     Type: AWS::ElasticLoadBalancingV2::Listener
-#     DependsOn: MyInternalALB
-#     Properties:
-#       LoadBalancerArn: !Ref MyInternalALB
-#       Port: 5000
-#       Protocol: HTTP
-#       DefaultActions:
-#         - Type: forward
-#           TargetGroupArn: !Ref MyInternalLBTargetGroup
+  MyALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: "My-ALB"
+      Subnets: 
+        - !Ref MyWebPubSub1
+        - !Ref MyWebPubSub2
+      SecurityGroups: 
+        - !Ref MyALBSG
+      Scheme: internet-facing
+      Tags:
+        - Key: "Name"
+          Value: "My-ALB"
+  MyALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: "My-Web-Target-Group"
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref MyVpc
+      TargetType: instance
+      HealthCheckPath: "/"
+      Tags:
+        - Key: "Name"
+          Value: "My-Web-Target-Group"
+  MyALBHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: MyALB
+    Properties:
+      LoadBalancerArn: !Ref MyALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyALBTargetGroup
+  MyInternalALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: "My-Internal-ALB"
+      Subnets: 
+        - !Ref MyAppPriSub1
+        - !Ref MyAppPriSub2
+      SecurityGroups: 
+        - !Ref MyInternalALBSG
+      Scheme: internal
+      Tags:
+        - Key: "Name"
+          Value: "My-Internal-ALB"
+  MyInternalLBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: "My-App-Target-Group"
+      Port: 5000
+      Protocol: HTTP
+      VpcId: !Ref MyVpc
+      TargetType: instance
+      HealthCheckPath: "/"
+      Tags:
+        - Key: "Name"
+          Value: "My-App-Target-Group"
+  MyInternalLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: MyInternalALB
+    Properties:
+      LoadBalancerArn: !Ref MyInternalALB
+      Port: 5000
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyInternalLBTargetGroup
 # # Add the auto scaling groups after you manually created the launch Templates
 #   MyWebTierAutoScalingGroup:
 #     Type: AWS::AutoScaling::AutoScalingGroup
