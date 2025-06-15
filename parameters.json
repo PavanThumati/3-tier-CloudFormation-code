@@ -8,6 +8,6 @@
     "MyWebInstanceLaunchTemplate": "sample-launchtemplate-arn",
     "MyAppInstanceLaunchTemplate": "sample-launchtemplate-arn",
     "MyWebInstanceLaunchTemplateVersion": "1",
-    "MyAppInstanceLaunchTemplateVersion": "1",
+    "MyAppInstanceLaunchTemplateVersion": "1"
   }
 }
