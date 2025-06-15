@@ -466,13 +466,13 @@ Resources:
 #         - !Ref MyAppPriSub1
 #         - !Ref MyAppPriSub2
 
-Outputs:
-  InternetFacingLoadBalancerURL:
-    Description: The URL of the Web Tier Application Load Balancer
-    Value: !GetAtt MyALB.DNSName
-  InternalLoadBalancerURL:
-    Description: The URL of the App Tier Application Load Balancer
-    Value: !GetAtt MyInternalALB.DNSName
+# Outputs:
+#   InternetFacingLoadBalancerURL:
+#     Description: The URL of the Web Tier Application Load Balancer
+#     Value: !GetAtt MyALB.DNSName
+#   InternalLoadBalancerURL:
+#     Description: The URL of the App Tier Application Load Balancer
+#     Value: !GetAtt MyInternalALB.DNSName
   # MySQLDatabaseEndpointAddress:
   #   Description: The FQDN of the MySQL Database
   #   Value: !GetAtt MySQLDatabase.Endpoint.Address
